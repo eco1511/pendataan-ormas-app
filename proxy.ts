@@ -5,7 +5,7 @@ import { getAuthSecretValue } from '@/lib/auth';
 
 const COOKIE = 'ormas_session';
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
   if (!path.startsWith('/dashboard')) return NextResponse.next();
 
