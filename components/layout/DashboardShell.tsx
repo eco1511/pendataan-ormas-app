@@ -1,0 +1,162 @@
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  BarChart3,
+  Table2,
+  ClipboardList,
+  Map,
+  History,
+  LogOut,
+  Menu,
+  X,
+  UsersRound,
+  RefreshCw,
+  Settings,
+  UserPlus,
+  MapPinned,
+} from "lucide-react";
+import type { SessionUser } from "@/lib/auth";
+
+const nav = [
+  { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  { href: "/dashboard/data-ormas", label: "Semua Data", icon: Table2 },
+  {
+    href: "/dashboard/laporan/bidang",
+    label: "Laporan Bidang",
+    icon: ClipboardList,
+  },
+  { href: "/dashboard/laporan/wilayah", label: "Rekap Wilayah", icon: Map },
+  { href: "/dashboard/laporan/daerah-pengirim", label: "Daerah Pengirim Data", icon: MapPinned },
+];
+export default function DashboardShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.authenticated) {
+          router.replace("/login");
+          return;
+        }
+        setUser(d.user);
+      })
+      .finally(() => setLoading(false));
+  }, [router]);
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+    router.refresh();
+  }
+  if (loading)
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center text-blue-800">
+        <RefreshCw className="animate-spin" />
+      </div>
+    );
+  const active = (href: string) =>
+    pathname === href || pathname.startsWith(href + "/");
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 transform bg-blue-950 text-white transition-transform md:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
+      >
+        <div className="flex h-16 items-center justify-between border-b border-blue-900 px-5">
+          <div className="flex items-center gap-2 font-bold">
+            <UsersRound size={22} />
+            Pendataan Ormas
+          </div>
+          <button className="md:hidden" onClick={() => setOpen(false)}>
+            <X />
+          </button>
+        </div>
+        <div className="border-b border-blue-900 p-4">
+          <div className="truncate font-semibold">{user?.name}</div>
+          <div className="text-xs text-blue-300">{user?.role}</div>
+        </div>
+        <nav className="scrollbar-thin space-y-1 overflow-y-auto p-3">
+          {nav.map((n) => (
+            <Link
+              key={n.href}
+              href={n.href}
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm ${active(n.href) ? "bg-blue-700 font-semibold" : "text-blue-100 hover:bg-blue-900"}`}
+            >
+              <n.icon size={18} />
+              {n.label}
+            </Link>
+          ))}
+          <Link
+            href="/dashboard/pengaturan-akun"
+            onClick={() => setOpen(false)}
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm ${active("/dashboard/pengaturan-akun") ? "bg-blue-700 font-semibold" : "text-blue-100 hover:bg-blue-900"}`}
+          >
+            <Settings size={18} />
+            Pengaturan Akun
+          </Link>
+          {user?.role === "Administrator" && (
+            <Link
+              href="/dashboard/tambah-akun"
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm ${active("/dashboard/tambah-akun") ? "bg-blue-700 font-semibold" : "text-blue-100 hover:bg-blue-900"}`}
+            >
+              <UserPlus size={18} />
+              Tambah Akun
+            </Link>
+          )}
+          {user?.role === "Administrator" && (
+            <Link
+              href="/dashboard/log-aktivitas"
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm ${active("/dashboard/log-aktivitas") ? "bg-blue-700 font-semibold" : "text-blue-100 hover:bg-blue-900"}`}
+            >
+              <History size={18} />
+              Log Aktivitas
+            </Link>
+          )}
+        </nav>
+        <button
+          onClick={logout}
+          className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-2 rounded-xl bg-red-500 py-2.5 font-semibold hover:bg-red-600"
+        >
+          <LogOut size={18} />
+          Logout
+        </button>
+      </aside>
+      <div className="md:pl-72">
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between bg-white px-4 shadow-sm md:px-8">
+          <button className="md:hidden" onClick={() => setOpen(true)}>
+            <Menu />
+          </button>
+          <div className="text-lg font-bold">{pageTitle(pathname)}</div>
+          <div className="hidden text-right md:block">
+            <div className="text-sm font-semibold">{user?.name}</div>
+            <div className="text-xs text-gray-500">{user?.role}</div>
+          </div>
+        </header>
+        <main className="p-4 md:p-8">{children}</main>
+      </div>
+    </div>
+  );
+}
+function pageTitle(path: string) {
+  if (path === "/dashboard") return "Dashboard";
+  if (path.startsWith("/dashboard/data-ormas")) return "Data Ormas";
+  if (path.startsWith("/dashboard/laporan/bidang"))
+    return "Laporan Bidang Kegiatan";
+  if (path.startsWith("/dashboard/laporan/wilayah")) return "Rekap Wilayah";
+  if (path.startsWith("/dashboard/laporan/daerah-pengirim")) return "Daerah Pengirim Data";
+  if (path.startsWith("/dashboard/pengaturan-akun")) return "Pengaturan Akun";
+  if (path.startsWith("/dashboard/tambah-akun")) return "Tambah Akun";
+  if (path.startsWith("/dashboard/log-aktivitas")) return "Log Aktivitas";
+  return "Pendataan Ormas";
+}

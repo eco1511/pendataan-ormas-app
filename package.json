@@ -1,0 +1,50 @@
+{
+  "name": "ormas-management-mongoose",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx scripts/seed.ts",
+    "migrate-data": "tsx scripts/migrate-data.ts",
+    "format": "prettier --write .",
+    "import-wilayah": "tsx scripts/import-wilayah.ts",
+    "db:check": "tsx scripts/db-check.ts",
+    "setup": "tsx scripts/setup.ts",
+    "import-bundled-data": "tsx scripts/import-bundled-data.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "jose": "^6.1.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.468.0",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.62.0",
+    "react-leaflet": "^5.0.0",
+    "recharts": "^3.2.1",
+    "xlsx": "^0.18.5",
+    "zod": "^4.1.5",
+    "@hookform/resolvers": "^5.2.1",
+    "@tailwindcss/postcss": "^4.1.13",
+    "dotenv": "^17.2.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.13",
+    "mongoose": "^8.18.2"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.20",
+    "@types/node": "^22.10.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.34.0",
+    "eslint-config-next": "^16.0.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,1 @@
+"use client";export default function Toast({message,type='success',onClose}:{message:string;type?:'success'|'error';onClose:()=>void}){return <button onClick={onClose} className={`fixed right-5 top-5 z-[80] rounded-xl px-4 py-3 text-sm font-medium text-white shadow-lg ${type==='error'?'bg-red-600':'bg-emerald-600'}`}>{message}</button>}

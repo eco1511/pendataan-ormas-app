@@ -1,0 +1,2 @@
+import {LucideIcon} from 'lucide-react';
+export default function StatCard({label,value,icon:Icon}:{label:string;value:number|string;icon:LucideIcon}){return <div className="rounded-2xl bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-800"><Icon size={22}/></div><div><div className="text-sm text-gray-500">{label}</div><div className="mt-1 text-2xl font-bold">{Number(value||0).toLocaleString('id-ID')}</div></div></div></div>}

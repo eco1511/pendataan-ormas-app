@@ -1,0 +1,2 @@
+@import 'tailwindcss';
+:root{--blue:#123c84;--blue2:#1d4ed8}*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;background:#f3f4f6;color:#1f2937}.leaflet-container{height:100%;width:100%;z-index:0}.scrollbar-thin::-webkit-scrollbar{width:7px;height:7px}.scrollbar-thin::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
