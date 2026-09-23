@@ -62,10 +62,10 @@ export async function listOrmas(params: {page?:number; pageSize?:number; search?
   await connectMongoDB();
   const page = Math.max(1, Number(params.page) || 1);
   const pageSize = Math.min(100, Math.max(10, Number(params.pageSize) || 20));
-  const filter = buildFilter(params);
+  const filter = buildFilter(params as unknown as Record<string, string | undefined>);
   const [total, docs] = await Promise.all([
     Ormas.countDocuments(filter),
-    Ormas.find(filter).sort({ tanggalUpdate: -1, createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize).lean(),
+    Ormas.find(filter).sort({ tanggalUpdate: -1, createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize).lean<any>(),
   ]);
   return { data: docs.map(mapDoc), total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
@@ -74,9 +74,9 @@ export async function getOrmas(id: string) {
   await connectMongoDB();
   let doc: any = null;
   if (/^[a-f\d]{24}$/i.test(id)) {
-    doc = await Ormas.findOne({ _id: id, statusData: { $ne: 'Deleted' } }).lean();
+    doc = await Ormas.findOne({ _id: id, statusData: { $ne: 'Deleted' } }).lean<any>();
   } else {
-    doc = await Ormas.findOne({ legacyId: id, statusData: { $ne: 'Deleted' } }).lean();
+    doc = await Ormas.findOne({ legacyId: id, statusData: { $ne: 'Deleted' } }).lean<any>();
   }
   return doc ? mapDoc(doc) : null;
 }
@@ -91,20 +91,20 @@ export async function createOrmas(input: OrmasInput, username: string) {
 export async function updateOrmas(id: string, input: OrmasInput, username: string) {
   await connectMongoDB();
   const query: any = /^[a-f\d]{24}$/i.test(id) ? { _id: id, statusData: { $ne: 'Deleted' } } : { legacyId: id, statusData: { $ne: 'Deleted' } };
-  const doc = await Ormas.findOneAndUpdate(query, { ...input, jumlahAnggota: Number(input.jumlahAnggota || 0), tanggalUpdate: new Date(), userUpdate: username }, { new: true }).lean();
+  const doc = await Ormas.findOneAndUpdate(query, { ...input, jumlahAnggota: Number(input.jumlahAnggota || 0), tanggalUpdate: new Date(), userUpdate: username }, { new: true }).lean<any>();
   return doc ? mapDoc(doc) : null;
 }
 
 export async function softDeleteOrmas(id: string, username: string) {
   await connectMongoDB();
   const query: any = /^[a-f\d]{24}$/i.test(id) ? { _id: id, statusData: { $ne: 'Deleted' } } : { legacyId: id, statusData: { $ne: 'Deleted' } };
-  const doc = await Ormas.findOneAndUpdate(query, { statusData: 'Deleted', deletedAt: new Date(), tanggalUpdate: new Date(), userUpdate: username }, { new: true }).lean();
+  const doc = await Ormas.findOneAndUpdate(query, { statusData: 'Deleted', deletedAt: new Date(), tanggalUpdate: new Date(), userUpdate: username }, { new: true }).lean<any>();
   return doc ? { id: String(doc._id), legacyId: doc.legacyId || null } : null;
 }
 
 export async function exportOrmas(params: Record<string, string>) {
   await connectMongoDB();
-  const docs = await Ormas.find(buildFilter(params)).sort({ tanggalUpdate: -1 }).lean();
+  const docs = await Ormas.find(buildFilter(params)).sort({ tanggalUpdate: -1 }).lean<any>();
   return docs.map(mapDoc);
 }
 

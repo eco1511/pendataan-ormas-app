@@ -315,7 +315,7 @@ export default function DataOrmasClient() {
                 window.open(
                   "/api/ormas/export?" +
                     new URLSearchParams({
-                      search,
+                      search: query,
                       provinsi: prov,
                       kabupaten: kab,
                       tingkat,
@@ -335,7 +335,7 @@ export default function DataOrmasClient() {
                 window.open(
                   "/api/ormas/export?" +
                     new URLSearchParams({
-                      search,
+                      search: query,
                       provinsi: prov,
                       kabupaten: kab,
                       tingkat,

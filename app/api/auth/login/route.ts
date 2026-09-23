@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const cleanUsername = String(username || '').trim();
     if (!cleanUsername || !password) return NextResponse.json({success:false,message:'Username dan password wajib diisi.'},{status:400});
     await connectMongoDB();
-    const user = await User.findOne({ username: cleanUsername, status: 'Aktif' }).lean();
+    const user = await User.findOne({ username: cleanUsername, status: 'Aktif' }).lean<any>();
     if (!user || !(await bcrypt.compare(String(password), user.passwordHash))) return NextResponse.json({success:false,message:'Username atau password salah / tidak aktif.'},{status:401});
     const sessionUser:SessionUser = {id:String(user._id), username:user.username, name:user.name, role:user.role};
     const token = await createSession(sessionUser);

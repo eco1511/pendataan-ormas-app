@@ -25,7 +25,7 @@ export async function migrateUsersFile(filePath: string) {
     const password = clean(row.Password);
     if (!username || !password) continue;
 
-    const existing = await User.findOne({ username }).lean();
+    const existing = await User.findOne({ username }).lean<any>();
     const passwordHash = existing && await bcrypt.compare(password, existing.passwordHash)
       ? existing.passwordHash
       : await bcrypt.hash(password, 12);
