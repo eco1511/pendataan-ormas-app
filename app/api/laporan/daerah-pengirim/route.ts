@@ -14,28 +14,55 @@ type Submission = {
   tingkat: string;
   provinsi: string;
   kabupatenKota: string;
+  pengirim: string;
 };
 
 function clean(value: unknown) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
 
-function formatTimestamp(value: unknown) {
+function parseTimestamp(value: unknown) {
   const raw = clean(value);
   const serial = Number(raw);
-  if (!raw || !Number.isFinite(serial) || serial < 20000) return raw;
-  const date = new Date((serial - 25569) * 86400000);
-  if (Number.isNaN(date.getTime())) return raw;
-  const pad = (part: number) => String(part).padStart(2, '0');
-  return `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}/${date.getUTCFullYear()} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
+  if (raw && Number.isFinite(serial) && serial >= 20000) {
+    return new Date((serial - 25569) * 86400000);
+  }
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+  const match = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:[ ,T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (!match) return null;
+  const first = Number(match[1]);
+  const second = Number(match[2]);
+  const day = first > 12 ? first : second;
+  const month = first > 12 ? second : first;
+  return new Date(Date.UTC(
+    Number(match[3]),
+    month - 1,
+    day,
+    Number(match[4] || 0),
+    Number(match[5] || 0),
+    Number(match[6] || 0),
+  ));
+}
+
+function formatTimestamp(value: unknown) {
+  const raw = clean(value);
+  const date = parseTimestamp(raw);
+  if (!date) return raw;
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  }).format(date).replace(' pukul ', ' ');
 }
 
 function getTimestampOrder(value: unknown) {
-  const raw = clean(value);
-  const serial = Number(raw);
-  if (Number.isFinite(serial) && serial >= 20000) return serial;
-  const parsed = Date.parse(raw);
-  return Number.isFinite(parsed) ? parsed / 86400000 : 0;
+  const parsed = parseTimestamp(value);
+  return parsed ? parsed.getTime() : 0;
 }
 
 function normalizeLevel(value: string) {
@@ -43,6 +70,10 @@ function normalizeLevel(value: string) {
   if (level.includes('kabupaten') || level.includes('kota')) return 'Kabupaten/Kota';
   if (level.includes('provinsi')) return 'Provinsi';
   return clean(value) || 'Tidak diketahui';
+}
+
+function getSender(row: Record<string, unknown>) {
+  return clean(row['Nama Pengirim'] ?? row['Nama pengirim'] ?? row['Pengirim'] ?? row['Nama']);
 }
 
 export async function GET(req: Request) {
@@ -62,6 +93,7 @@ export async function GET(req: Request) {
       tingkat: normalizeLevel(clean(row['Tingkat Wilayah'])),
       provinsi: clean(row.Provinsi),
       kabupatenKota: clean(row['Kabupaten/Kota']),
+      pengirim: getSender(row),
     })).filter((row) => row.provinsi || row.kabupatenKota);
 
     const grouped = new Map<string, Submission & { jumlahKiriman: number }>();
@@ -73,6 +105,7 @@ export async function GET(req: Request) {
         if (row.timestampOrder > existing.timestampOrder) {
           existing.timestamp = row.timestamp;
           existing.timestampOrder = row.timestampOrder;
+          existing.pengirim = row.pengirim;
         }
       } else grouped.set(key, { ...row, jumlahKiriman: 1 });
     }
@@ -115,6 +148,17 @@ export async function GET(req: Request) {
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const currentPage = Math.min(page, totalPages);
     const start = (currentPage - 1) * pageSize;
+    const notifications = [...submissions]
+      .sort((a, b) => b.timestampOrder - a.timestampOrder)
+      .slice(0, 10)
+      .map((row, index) => ({
+        id: `${row.timestampOrder}-${row.provinsi}-${row.kabupatenKota}-${row.pengirim}-${index}`,
+        timestamp: row.timestamp,
+        tingkat: row.tingkat,
+        provinsi: row.provinsi,
+        kabupatenKota: row.kabupatenKota,
+        pengirim: row.pengirim || 'Tidak diketahui',
+      }));
 
     return NextResponse.json({
       success: true,
@@ -129,6 +173,7 @@ export async function GET(req: Request) {
       totalKabupatenKota: new Set(submissions.filter((row) => row.tingkat === 'Kabupaten/Kota').map((row) => `${row.provinsi}|${row.kabupatenKota}`)).size,
       totalGabungan: new Set(submissions.filter((row) => row.tingkat === 'Provinsi').map((row) => `provinsi|${row.provinsi}`)).size
         + new Set(submissions.filter((row) => row.tingkat === 'Kabupaten/Kota').map((row) => `kabupaten|${row.provinsi}|${row.kabupatenKota}`)).size,
+      notifications,
       perProvinsi,
       provinces: masterProvinces,
     });

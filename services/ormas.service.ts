@@ -173,6 +173,38 @@ export async function getLaporanBidang(params: {page?:number;pageSize?:number;pr
 }
 
 export async function getWilayahRecap() {
-  const stats = await getDashboardStats();
-  return Object.entries(stats.wilayah).map(([provinsi, v]) => ({ provinsi, total: v.total, kabupaten: Object.entries(v.kabupaten).map(([nama, jumlah]) => ({ nama, jumlah })).sort((a, b) => Number(b.jumlah) - Number(a.jumlah)) })).sort((a, b) => b.total - a.total);
+  await connectMongoDB();
+  const rows = await Ormas.aggregate([
+    { $match: { statusData: { $ne: 'Deleted' }, provinsi: { $ne: '' } } },
+    {
+      $group: {
+        _id: { provinsi: '$provinsi', kabupatenKota: '$kabupatenKota', tingkat: '$tingkat' },
+        jumlah: { $sum: 1 },
+      },
+    },
+  ]);
+  const recap = new Map<string, { total: number; jumlahProvinsi: number; jumlahKabupatenKota: number; kabupaten: Map<string, number> }>();
+  for (const row of rows) {
+    const provinsi = String(row._id.provinsi);
+    const current = recap.get(provinsi) || { total: 0, jumlahProvinsi: 0, jumlahKabupatenKota: 0, kabupaten: new Map<string, number>() };
+    current.total += row.jumlah;
+    if (row._id.tingkat === 'Provinsi') {
+      current.jumlahProvinsi += row.jumlah;
+    } else if (row._id.tingkat === 'Kabupaten/Kota') {
+      current.jumlahKabupatenKota += row.jumlah;
+      if (row._id.kabupatenKota) current.kabupaten.set(String(row._id.kabupatenKota), row.jumlah);
+    }
+    recap.set(provinsi, current);
+  }
+  return [...recap.entries()]
+    .map(([provinsi, value]) => ({
+      provinsi,
+      total: value.total,
+      jumlahProvinsi: value.jumlahProvinsi,
+      jumlahKabupatenKota: value.jumlahKabupatenKota,
+      kabupaten: [...value.kabupaten.entries()]
+        .map(([nama, jumlah]) => ({ nama, jumlah }))
+        .sort((a, b) => Number(b.jumlah) - Number(a.jumlah)),
+    }))
+    .sort((a, b) => b.total - a.total);
 }

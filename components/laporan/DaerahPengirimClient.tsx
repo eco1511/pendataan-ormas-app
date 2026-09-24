@@ -119,7 +119,7 @@ export default function DaerahPengirimClient() {
                   <th className="px-5 py-3 text-left">Tingkat Wilayah</th>
                   <th className="px-5 py-3 text-left">Provinsi</th>
                   <th className="px-5 py-3 text-left">Kabupaten/Kota</th>
-                  <th className="px-5 py-3 text-left">Kiriman Terbaru</th>
+                  <th className="px-5 py-3 text-left">Tanggal Kirim Terakhir</th>
                 </tr>
               </thead>
               <tbody>

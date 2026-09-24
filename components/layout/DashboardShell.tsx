@@ -16,8 +16,18 @@ import {
   Settings,
   UserPlus,
   MapPinned,
+  Bell,
 } from "lucide-react";
 import type { SessionUser } from "@/lib/auth";
+
+type DataNotification = {
+  id: string;
+  timestamp: string;
+  tingkat: string;
+  provinsi: string;
+  kabupatenKota: string;
+  pengirim: string;
+};
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
@@ -40,6 +50,9 @@ export default function DashboardShell({
   const [user, setUser] = useState<SessionUser | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<DataNotification[]>([]);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => r.json())
@@ -52,6 +65,36 @@ export default function DashboardShell({
       })
       .finally(() => setLoading(false));
   }, [router]);
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const loadNotifications = async () => {
+      try {
+        const response = await fetch("/api/laporan/daerah-pengirim?pageSize=1", {
+          cache: "no-store",
+        });
+        const result = await response.json();
+        if (!active || !result.success) return;
+        const items = result.notifications || [];
+        setNotifications(items);
+        const seen = new Set<string>(JSON.parse(localStorage.getItem("daerah-pengirim-notifications") || "[]"));
+        setUnreadCount(items.filter((item: DataNotification) => !seen.has(item.id)).length);
+      } catch {
+        // Notifications are supplementary and should not interrupt dashboard use.
+      }
+    };
+    loadNotifications();
+    const timer = window.setInterval(loadNotifications, 60000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [user]);
+
+  function markNotificationsRead() {
+    localStorage.setItem("daerah-pengirim-notifications", JSON.stringify(notifications.map((item) => item.id)));
+    setUnreadCount(0);
+  }
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.replace("/login");
@@ -129,7 +172,7 @@ export default function DashboardShell({
           className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-2 rounded-xl bg-red-500 py-2.5 font-semibold hover:bg-red-600"
         >
           <LogOut size={18} />
-          Logout
+          Keluar
         </button>
       </aside>
       <div className="md:pl-72">
@@ -138,9 +181,50 @@ export default function DashboardShell({
             <Menu />
           </button>
           <div className="text-lg font-bold">{pageTitle(pathname)}</div>
-          <div className="hidden text-right md:block">
-            <div className="text-sm font-semibold">{user?.name}</div>
-            <div className="text-xs text-gray-500">{user?.role}</div>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setNotificationOpen((value) => !value);
+                  if (!notificationOpen) markNotificationsRead();
+                }}
+                className="relative rounded-lg p-2 text-gray-600 hover:bg-gray-100"
+                aria-label="Notifikasi data masuk"
+              >
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1 text-center text-[10px] font-bold leading-5 text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              {notificationOpen && (
+                <div className="absolute right-0 top-12 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border bg-white text-left shadow-lg">
+                  <div className="border-b px-4 py-3 font-semibold">Daerah Pengirim Data</div>
+                  {notifications.length ? (
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.map((item) => (
+                        <div key={item.id} className="border-b px-4 py-3 last:border-0">
+                          <div className="text-sm font-semibold">
+                            {item.kabupatenKota || item.provinsi}
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {item.provinsi} · {item.pengirim}
+                          </div>
+                          <div className="mt-1 text-[11px] text-gray-400">{item.timestamp || "Waktu tidak tersedia"}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-4 py-6 text-center text-sm text-gray-400">Belum ada data masuk.</div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="hidden text-right md:block">
+              <div className="text-sm font-semibold">{user?.name}</div>
+              <div className="text-xs text-gray-500">{user?.role}</div>
+            </div>
           </div>
         </header>
         <main className="p-4 md:p-8">{children}</main>
