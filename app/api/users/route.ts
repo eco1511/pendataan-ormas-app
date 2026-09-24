@@ -14,7 +14,7 @@ export async function GET() {
   try {
     await connectMongoDB();
     const users = await User.find(
-      { role: 'Administrator' },
+      {},
       { username: 1, name: 1, role: 1, status: 1, createdAt: 1, _id: 0 },
     ).sort({ createdAt: -1 }).lean();
     return NextResponse.json({ success: true, users });
