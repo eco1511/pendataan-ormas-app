@@ -40,8 +40,10 @@ export default function DaerahPengirimClient() {
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2">
-        <Summary label="Jumlah Total" value={data.totalKabupatenKota || 0} />
+      <div className="grid gap-4 md:grid-cols-3">
+        <Summary label="Jumlah Kabupaten/Kota" value={data.totalKabupatenKota || 0} />
+        <Summary label="Jumlah Provinsi" value={data.totalProvinsi || 0} />
+        <Summary label="Jumlah Total Provinsi + Kabupaten/Kota" value={data.totalGabungan || 0} />
       </div>
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row">
@@ -89,8 +91,8 @@ export default function DaerahPengirimClient() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50"><tr><th className="px-5 py-3 text-left">No</th><th className="px-5 py-3 text-left">Provinsi</th><th className="px-5 py-3 text-left">Kabupaten/Kota</th></tr></thead>
-            <tbody>{loading ? <tr><td colSpan={3} className="py-8 text-center text-gray-400">Memuat data...</td></tr> : (data.perProvinsi || []).length ? data.perProvinsi.map((row: any, index: number) => <tr key={row.provinsi} className="border-t align-top"><td className="px-5 py-3">{index + 1}</td><td className="px-5 py-3 font-medium">{row.provinsi}</td><td className="px-5 py-3 text-gray-600">{row.kabupatenKota?.length ? row.kabupatenKota.join(', ') : '-'}</td></tr>) : <tr><td colSpan={3} className="py-8 text-center text-gray-400">Belum ada data per provinsi.</td></tr>}</tbody>
+            <thead className="bg-gray-50"><tr><th className="px-5 py-3 text-left">No</th><th className="px-5 py-3 text-left">Provinsi</th><th className="px-5 py-3 text-left">Jumlah Provinsi</th><th className="px-5 py-3 text-left">Jumlah Kabupaten/Kota</th><th className="px-5 py-3 text-left">Kabupaten/Kota</th></tr></thead>
+            <tbody>{loading ? <tr><td colSpan={5} className="py-8 text-center text-gray-400">Memuat data...</td></tr> : (data.perProvinsi || []).length ? data.perProvinsi.map((row: any, index: number) => <tr key={row.provinsi} className="border-t align-top"><td className="px-5 py-3">{index + 1}</td><td className="px-5 py-3 font-medium">{row.provinsi}</td><td className="px-5 py-3">{row.jumlahProvinsi || 0}</td><td className="px-5 py-3">{row.jumlahKabupatenKota || 0}</td><td className="px-5 py-3 text-gray-600">{row.kabupatenKota?.length ? row.kabupatenKota.join(', ') : '-'}</td></tr>) : <tr><td colSpan={5} className="py-8 text-center text-gray-400">Belum ada data per provinsi.</td></tr>}</tbody>
           </table>
         </div>
       </div>
@@ -102,7 +104,7 @@ export default function DaerahPengirimClient() {
           <div>
             <h2 className="font-bold">Daerah yang Sudah Mengirimkan Data</h2>
             <p className="text-xs text-gray-500">
-              Sumber: spreadsheet pengiriman data
+              Sumber: spreadsheet pengiriman data, diurutkan dari kiriman terbaru
             </p>
           </div>
         </div>
@@ -195,3 +197,4 @@ function Summary({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
+

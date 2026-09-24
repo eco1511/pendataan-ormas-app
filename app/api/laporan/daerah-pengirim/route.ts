@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { getSession } from '@/lib/auth';
 import { PROVINCES } from '@/lib/utils';
+import { connectMongoDB } from '@/lib/mongodb';
+import { Province } from '@/models/Province';
+import { Regency } from '@/models/Regency';
 
 const SOURCE_URL = 'https://docs.google.com/spreadsheets/d/1RtZcy4otGtGzCU2koDneehrX4gshu_HUzbhT5dddZNM/export?format=csv&gid=0';
 
@@ -83,17 +86,29 @@ export async function GET(req: Request) {
     const filtered = [...grouped.values()].filter((row) => {
       const matchesSearch = !search || [row.provinsi, row.kabupatenKota, row.tingkat].join(' ').toLowerCase().includes(search);
       return matchesSearch && (!tingkat || row.tingkat === tingkat) && (!provinsi || row.provinsi === provinsi);
-    }).sort((a, b) => b.timestampOrder - a.timestampOrder || b.jumlahKiriman - a.jumlahKiriman || a.provinsi.localeCompare(b.provinsi));
+    }).sort((a, b) => b.timestampOrder - a.timestampOrder
+      || b.jumlahKiriman - a.jumlahKiriman
+      || a.provinsi.localeCompare(b.provinsi)
+      || a.kabupatenKota.localeCompare(b.kabupatenKota));
+    await connectMongoDB();
+    const provinceRows = await Province.find({}, { namaProvinsi: 1, _id: 0 }).lean();
+    const masterProvinces = [...new Set([
+      ...PROVINCES,
+      ...provinceRows.map((row: any) => clean(row.namaProvinsi)),
+    ].filter(Boolean))];
     const provinceNames = provinsi
       ? [provinsi]
-      : [...new Set([...PROVINCES, ...filtered.map((row) => row.provinsi)])].filter(Boolean);
-    const provinceMap = new Map<string, { provinsi: string; daerahTerdata: number; kabupatenKota: Set<string> }>(
-      provinceNames.map((name) => [name, { provinsi: name, daerahTerdata: 0, kabupatenKota: new Set<string>() }]),
+      : [...new Set([...masterProvinces, ...filtered.map((row) => row.provinsi)])].filter(Boolean);
+    const provinceMap = new Map<string, { provinsi: string; jumlahProvinsi: number; jumlahKabupatenKota: number; kabupatenKota: Set<string> }>(
+      provinceNames.map((name) => [name, { provinsi: name, jumlahProvinsi: 0, jumlahKabupatenKota: 0, kabupatenKota: new Set<string>() }]),
     );
     for (const row of filtered) {
-      const summary = provinceMap.get(row.provinsi) || { provinsi: row.provinsi, daerahTerdata: 0, kabupatenKota: new Set<string>() };
-      summary.daerahTerdata += 1;
-      if (row.tingkat === 'Kabupaten/Kota' && row.kabupatenKota) summary.kabupatenKota.add(row.kabupatenKota);
+      const summary = provinceMap.get(row.provinsi) || { provinsi: row.provinsi, jumlahProvinsi: 0, jumlahKabupatenKota: 0, kabupatenKota: new Set<string>() };
+      if (row.tingkat === 'Provinsi') summary.jumlahProvinsi = 1;
+      if (row.tingkat === 'Kabupaten/Kota' && row.kabupatenKota) {
+        summary.kabupatenKota.add(row.kabupatenKota);
+        summary.jumlahKabupatenKota = summary.kabupatenKota.size;
+      }
       provinceMap.set(row.provinsi, summary);
     }
     const perProvinsi = [...provinceMap.values()].map((row) => ({ ...row, kabupatenKota: [...row.kabupatenKota].sort() })).sort((a, b) => a.provinsi.localeCompare(b.provinsi));
@@ -112,8 +127,10 @@ export async function GET(req: Request) {
       totalDaerah: grouped.size,
       totalProvinsi: new Set(submissions.filter((row) => row.tingkat === 'Provinsi').map((row) => row.provinsi)).size,
       totalKabupatenKota: new Set(submissions.filter((row) => row.tingkat === 'Kabupaten/Kota').map((row) => `${row.provinsi}|${row.kabupatenKota}`)).size,
+      totalGabungan: new Set(submissions.filter((row) => row.tingkat === 'Provinsi').map((row) => `provinsi|${row.provinsi}`)).size
+        + new Set(submissions.filter((row) => row.tingkat === 'Kabupaten/Kota').map((row) => `kabupaten|${row.provinsi}|${row.kabupatenKota}`)).size,
       perProvinsi,
-      provinces: [...PROVINCES],
+      provinces: masterProvinces,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error?.message || 'Gagal memuat daerah pengirim data.' }, { status: 502 });
