@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     await connectMongoDB();
     const { id } = await params;
-    const user = await User.findById(id, { username: 1, name: 1, role: 1, status: 1, createdAt: 1 }).lean();
+    const user = await User.findById(id, { username: 1, name: 1, role: 1, status: 1, createdAt: 1 }).lean<any>();
     if (!user) return NextResponse.json({ success: false, message: 'Akun tidak ditemukan.' }, { status: 404 });
     return NextResponse.json({ success: true, user: { ...user, id: String(user._id) } });
   } catch (error: any) {
