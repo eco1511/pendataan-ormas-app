@@ -13,10 +13,11 @@ export async function GET() {
 
   try {
     await connectMongoDB();
-    const users = await User.find(
+    const records = await User.find(
       {},
-      { username: 1, name: 1, role: 1, status: 1, createdAt: 1, _id: 0 },
+      { username: 1, name: 1, role: 1, status: 1, createdAt: 1 },
     ).sort({ createdAt: -1 }).lean();
+    const users = records.map(({ _id, ...user }) => ({ ...user, id: String(_id) }));
     return NextResponse.json({ success: true, users });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error?.message || 'Gagal memuat daftar akun.' }, { status: 500 });
