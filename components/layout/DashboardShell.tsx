@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -10,7 +11,6 @@ import {
   LogOut,
   Menu,
   X,
-  UsersRound,
   RefreshCw,
   Settings,
   UserPlus,
@@ -115,7 +115,7 @@ export default function DashboardShell({
       >
         <div className="flex h-16 items-center justify-between border-b border-blue-900 px-5">
           <div className="flex items-center gap-2 font-bold">
-            <UsersRound size={22} />
+            <Image src="/images/logo-pendataan-ormas.png" alt="Logo Pendataan Ormas" width={36} height={36} priority className="h-9 w-9 object-contain" />
             Pendataan Ormas
           </div>
           <button className="md:hidden" onClick={() => setOpen(false)}>
