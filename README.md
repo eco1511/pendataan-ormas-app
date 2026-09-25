@@ -47,6 +47,20 @@ npm run dev
 
 Buka `http://localhost:3000/login`.
 
+## Deploy ke Vercel dengan MongoDB Atlas
+
+1. Buat database di MongoDB Atlas dan buat database user dengan hak akses ke database `ormas_db`.
+2. Pada Atlas, buka **Security → Network Access → IP Access List** dan tambahkan `0.0.0.0/0` untuk mengizinkan koneksi dari Vercel. Batasi akses database user hanya pada kebutuhan aplikasi.
+3. Pada Vercel, buka **Project Settings → Environment Variables** dan tambahkan:
+
+```env
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/ormas_db?retryWrites=true&w=majority
+AUTH_SECRET=<random-secret-minimal-32-karakter>
+NEXT_PUBLIC_APP_NAME=Pendataan Ormas
+```
+
+Aktifkan variable untuk environment yang dipakai, lalu lakukan redeploy. Jangan memakai URI `127.0.0.1` di Vercel karena itu menunjuk ke server Vercel sendiri, bukan komputer lokal atau MongoDB Atlas.
+
 Development login:
 - `admin / admin123`
 - `operator / operator123`

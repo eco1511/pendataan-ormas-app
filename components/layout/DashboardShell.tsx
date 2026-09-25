@@ -6,7 +6,6 @@ import {
   BarChart3,
   Table2,
   ClipboardList,
-  Map,
   History,
   LogOut,
   Menu,
@@ -17,6 +16,7 @@ import {
   UserPlus,
   MapPinned,
   Bell,
+  ClipboardCheck,
 } from "lucide-react";
 import type { SessionUser } from "@/lib/auth";
 
@@ -37,8 +37,8 @@ const nav = [
     label: "Laporan Bidang",
     icon: ClipboardList,
   },
-  { href: "/dashboard/laporan/wilayah", label: "Rekap Wilayah", icon: Map },
   { href: "/dashboard/laporan/daerah-pengirim", label: "Daerah Pengirim Data", icon: MapPinned },
+  { href: "/dashboard/laporan/rekap-ormas", label: "Rekap Data Ormas", icon: ClipboardCheck },
 ];
 export default function DashboardShell({
   children,
@@ -239,6 +239,7 @@ function pageTitle(path: string) {
     return "Laporan Bidang Kegiatan";
   if (path.startsWith("/dashboard/laporan/wilayah")) return "Rekap Wilayah";
   if (path.startsWith("/dashboard/laporan/daerah-pengirim")) return "Daerah Pengirim Data";
+  if (path.startsWith("/dashboard/laporan/rekap-ormas")) return "Rekap Data Ormas";
   if (path.startsWith("/dashboard/pengaturan-akun")) return "Pengaturan Akun";
   if (path.startsWith("/dashboard/tambah-akun")) return "Tambah Akun";
   if (path.startsWith("/dashboard/log-aktivitas")) return "Log Aktivitas";

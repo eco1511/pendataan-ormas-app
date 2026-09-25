@@ -112,6 +112,7 @@ export async function getDashboardStats() {
   await connectMongoDB();
   const filter = { statusData: { $ne: 'Deleted' } };
   const [summary] = await Ormas.aggregate([{ $match: filter }, { $group: { _id: null, total: { $sum: 1 }, pusat: { $sum: { $cond: [{ $eq: ['$statusKepengurusan', 'Pusat'] }, 1, 0] } }, cabang: { $sum: { $cond: [{ $eq: ['$statusKepengurusan', 'Cabang'] }, 1, 0] } }, nasional: { $sum: { $cond: [{ $eq: ['$tingkat', 'Nasional'] }, 1, 0] } } } }]);
+  const latest = await Ormas.findOne(filter, { tanggalUpdate: 1, createdAt: 1 }).sort({ tanggalUpdate: -1, createdAt: -1 }).lean<any>();
   const [byProvinsi, byBidang, byTingkat, byWilayah] = await Promise.all([
     Ormas.aggregate([{ $match: { ...filter, provinsi: { $ne: '' } } }, { $group: { _id: '$provinsi', jumlah: { $sum: 1 } } }, { $sort: { jumlah: -1 } }]),
     Ormas.aggregate([{ $match: { ...filter, bidangKegiatan: { $ne: '' } } }, { $group: { _id: '$bidangKegiatan', jumlah: { $sum: 1 } } }, { $sort: { jumlah: -1 } }]),
@@ -123,7 +124,7 @@ export async function getDashboardStats() {
   const tingkat: Record<string, number> = {}; byTingkat.forEach((x: any) => { tingkat[x._id] = x.jumlah; });
   const wilayah: Record<string, { total:number; kabupaten:Record<string,number> }> = {};
   byWilayah.forEach((x: any) => { const p = x._id.provinsi; const k = x._id.kabupatenKota; wilayah[p] ??= { total: 0, kabupaten: {} }; wilayah[p].total += x.jumlah; if (k) wilayah[p].kabupaten[k] = (wilayah[p].kabupaten[k] || 0) + x.jumlah; });
-  return { total: summary?.total || 0, pusat: summary?.pusat || 0, cabang: summary?.cabang || 0, nasional: summary?.nasional || 0, provinsi, bidang, tingkat, wilayah };
+  return { total: summary?.total || 0, pusat: summary?.pusat || 0, cabang: summary?.cabang || 0, nasional: summary?.nasional || 0, provinsi, bidang, tingkat, wilayah, lastUpdated: latest?.tanggalUpdate || latest?.createdAt || null };
 }
 
 export async function getBidangStats(provinsi = '', kabupaten = '') {

@@ -17,13 +17,19 @@ export async function POST(req: Request) {
     const token = await createSession(sessionUser);
     const res = NextResponse.json({success:true,user:sessionUser});
     res.cookies.set(SESSION_COOKIE, token, {httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:60*60*8});
-    await logActivity(user.username,'Login','-','User berhasil login');
+    try {
+      await logActivity(user.username,'Login','-','User berhasil login');
+    } catch (error) {
+      console.error('LOGIN_ACTIVITY_LOG_ERROR', error);
+    }
     return res;
   } catch(e:any) {
     console.error('LOGIN_ERROR', e);
     const message = String(e?.message || 'Login gagal.');
-    const friendly = message.includes('ECONNREFUSED') || message.includes('MongooseServerSelectionError')
-      ? 'MongoDB tidak dapat dihubungi. Pastikan MongoDB Server berjalan di 127.0.0.1:27017.'
+    const friendly = message.includes('ECONNREFUSED') || message.includes('MongooseServerSelectionError') || message.includes('MongoServerSelectionError')
+      ? process.env.VERCEL
+        ? 'MongoDB Atlas tidak dapat dihubungi dari Vercel. Periksa MONGODB_URI di Vercel dan tambahkan akses jaringan Vercel pada Atlas Network Access.'
+        : 'MongoDB tidak dapat dihubungi. Pastikan MongoDB Server berjalan di 127.0.0.1:27017.'
       : message;
     return NextResponse.json({success:false,message:friendly},{status:500});
   }

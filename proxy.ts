@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
-import { getAuthSecretValue } from '@/lib/auth';
 
 const COOKIE = 'ormas_session';
+const DEV_SECRET = 'ormas-local-development-secret-2026-change-me';
+
+function getSecret(): Uint8Array {
+  const s = process.env.AUTH_SECRET?.trim() || DEV_SECRET;
+  return new TextEncoder().encode(s);
+}
 
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
@@ -13,12 +18,11 @@ export async function proxy(req: NextRequest) {
   if (!token) return NextResponse.redirect(new URL('/login', req.url));
 
   try {
-    const secret = getAuthSecretValue();
-    await jwtVerify(token, new TextEncoder().encode(secret));
+    await jwtVerify(token, getSecret());
     return NextResponse.next();
   } catch {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 }
 
-export const config = { matcher: ['/dashboard/:path*'] };
+export const config = { matcher: ['/dashboard/:path*'] };
