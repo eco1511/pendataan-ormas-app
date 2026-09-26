@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -98,6 +98,7 @@ export default function DataOrmasClient() {
   const [editing, setEditing] = useState<any>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importRows, setImportRows] = useState<any[]>([]);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type?: "success" | "error";
@@ -178,6 +179,9 @@ export default function DataOrmasClient() {
     setModal(true);
   }
   async function importFile(file: File) {
+    if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+      throw new Error("Pilih file Excel atau CSV (.xlsx, .xls, .csv).");
+    }
     const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
     const sheetName =
       wb.SheetNames.find((name) => canon(name) === "data ormas") ||
@@ -197,14 +201,33 @@ export default function DataOrmasClient() {
     const missing = REQUIRED.filter((x) => map[x] === undefined);
     if (missing.length)
       throw new Error("Kolom belum lengkap: " + missing.join(", "));
-    const data = matrix.slice(1, 5001).map((row) => {
-      const o: any = {};
-      HEADERS.forEach(
-        (h) => (o[camel(h)] = String(row[map[h] ?? -1] ?? "").trim()),
-      );
-      return o;
-    });
+    const data = matrix
+      .slice(1)
+      .filter((row) => row.some((cell) => String(cell ?? "").trim() !== ""))
+      .slice(0, 5000)
+      .map((row) => {
+        const o: any = {};
+        HEADERS.forEach(
+          (h) => (o[camel(h)] = String(row[map[h] ?? -1] ?? "").trim()),
+        );
+        return o;
+      });
+    if (!data.length) throw new Error("File tidak memiliki data untuk diimpor.");
     setImportRows(data);
+  }
+  async function handleFile(file?: File) {
+    if (!file) return;
+    try {
+      await importFile(file);
+    } catch (err: any) {
+      setImportRows([]);
+      setToast({ message: err.message || "File tidak dapat dibaca.", type: "error" });
+    }
+  }
+  function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDraggingFile(false);
+    void handleFile(event.dataTransfer.files?.[0]);
   }
   function camel(h: string) {
     const m: Record<string, string> = {
@@ -571,22 +594,30 @@ export default function DataOrmasClient() {
               </button>
               <label
                 htmlFor="import-file"
-                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white"
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  setIsDraggingFile(true);
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDragLeave={() => setIsDraggingFile(false)}
+                onDrop={handleDrop}
+                className={`flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm font-semibold transition ${
+                  isDraggingFile
+                    ? "border-amber-500 bg-amber-50 text-amber-700"
+                    : "border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-500 hover:bg-amber-100"
+                }`}
               >
-                <Upload size={16} />
-                Pilih File
+                <Upload size={20} />
+                <span>Tarik dan lepas file di sini</span>
+                <span className="font-normal text-amber-800">
+                  atau klik untuk memilih file Excel / CSV
+                </span>
               </label>
               <input
                 id="import-file"
                 type="file"
                 accept=".xlsx,.xls,.csv"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f)
-                    importFile(f).catch((err) =>
-                      setToast({ message: err.message, type: "error" }),
-                    );
-                }}
+                onChange={(event) => void handleFile(event.target.files?.[0])}
                 className="hidden"
               />
               {importRows.length > 0 && (
