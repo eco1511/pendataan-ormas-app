@@ -8,6 +8,42 @@ import { Regency } from '@/models/Regency';
 
 const SOURCE_URL = 'https://docs.google.com/spreadsheets/d/1RtZcy4otGtGzCU2koDneehrX4gshu_HUzbhT5dddZNM/export?format=csv&gid=0';
 
+const WILAYAH_SOURCE_URL = 'https://pangesturahmatn.github.io/api-wilayah-indonesia/api';
+
+type MasterRegency = {
+  provinsi: string;
+  namaKabupatenKota: string;
+};
+
+type SourceProvince = {
+  id: string;
+  name: string;
+};
+
+type SourceRegency = {
+  name: string;
+};
+
+let fallbackRegencies: Promise<MasterRegency[]> | null = null;
+
+async function getFallbackRegencies() {
+  fallbackRegencies ??= (async () => {
+    const provinceResponse = await fetch(`${WILAYAH_SOURCE_URL}/provinces.json`);
+    if (!provinceResponse.ok) throw new Error('Gagal memuat master Kabupaten/Kota.');
+    const provinces = await provinceResponse.json() as SourceProvince[];
+    const rows = await Promise.all(provinces.map(async (province) => {
+      const response = await fetch(`${WILAYAH_SOURCE_URL}/regencies/${province.id}.json`);
+      if (!response.ok) throw new Error('Gagal memuat master Kabupaten/Kota.');
+      const regencies = await response.json() as SourceRegency[];
+      return regencies.map((regency) => ({
+        provinsi: province.name,
+        namaKabupatenKota: regency.name,
+      }));
+    }));
+    return rows.flat();
+  })();
+  return fallbackRegencies;
+}
 type Submission = {
   timestamp: string;
   timestampOrder: number;
@@ -160,6 +196,7 @@ export async function GET(req: Request) {
       Province.find({}, { namaProvinsi: 1, _id: 0 }).lean(),
       Regency.find({}, { provinsi: 1, namaKabupatenKota: 1, _id: 0 }).lean(),
     ]);
+    const masterRegencyRows = regencyRows.length ? regencyRows : await getFallbackRegencies();
     const masterProvinces = [...new Set([
       ...PROVINCES,
       ...provinceRows.map((row: any) => clean(row.namaProvinsi)),
@@ -180,7 +217,7 @@ export async function GET(req: Request) {
       provinceMap.set(row.provinsi, summary);
     }
     const masterKabupatenByProvinsi = new Map<string, string[]>();
-    for (const row of regencyRows) {
+    for (const row of masterRegencyRows) {
       const province = clean((row as any).provinsi);
       const regency = clean((row as any).namaKabupatenKota);
       if (!province || !regency) continue;
