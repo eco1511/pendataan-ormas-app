@@ -113,18 +113,20 @@ export async function getDashboardStats() {
   const filter = { statusData: { $ne: 'Deleted' } };
   const [summary] = await Ormas.aggregate([{ $match: filter }, { $group: { _id: null, total: { $sum: 1 }, pusat: { $sum: { $cond: [{ $eq: ['$statusKepengurusan', 'Pusat'] }, 1, 0] } }, cabang: { $sum: { $cond: [{ $eq: ['$statusKepengurusan', 'Cabang'] }, 1, 0] } }, nasional: { $sum: { $cond: [{ $eq: ['$tingkat', 'Nasional'] }, 1, 0] } } } }]);
   const latest = await Ormas.findOne(filter, { tanggalUpdate: 1, createdAt: 1 }).sort({ tanggalUpdate: -1, createdAt: -1 }).lean<any>();
-  const [byProvinsi, byBidang, byTingkat, byWilayah] = await Promise.all([
+  const [byProvinsi, byBidang, byTingkat, byWilayah, jumlahProvinsi, jumlahKabupatenKota] = await Promise.all([
     Ormas.aggregate([{ $match: { ...filter, provinsi: { $ne: '' } } }, { $group: { _id: '$provinsi', jumlah: { $sum: 1 } } }, { $sort: { jumlah: -1 } }]),
     Ormas.aggregate([{ $match: { ...filter, bidangKegiatan: { $ne: '' } } }, { $group: { _id: '$bidangKegiatan', jumlah: { $sum: 1 } } }, { $sort: { jumlah: -1 } }]),
     Ormas.aggregate([{ $match: filter }, { $group: { _id: '$tingkat', jumlah: { $sum: 1 } } }, { $sort: { jumlah: -1 } }]),
     Ormas.aggregate([{ $match: { ...filter, provinsi: { $ne: '' } } }, { $group: { _id: { provinsi: '$provinsi', kabupatenKota: '$kabupatenKota' }, jumlah: { $sum: 1 } } }]),
+    Ormas.distinct('provinsi', { ...filter, tingkat: 'Provinsi', provinsi: { $ne: '' } }),
+    Ormas.aggregate([{ $match: { ...filter, tingkat: 'Kabupaten/Kota', provinsi: { $ne: '' }, kabupatenKota: { $ne: '' } } }, { $group: { _id: { provinsi: '$provinsi', kabupatenKota: '$kabupatenKota' } } }]),
   ]);
   const provinsi: Record<string, number> = {}; byProvinsi.forEach((x: any) => { provinsi[x._id] = x.jumlah; });
   const bidang: Record<string, number> = {}; byBidang.forEach((x: any) => { bidang[x._id] = x.jumlah; });
   const tingkat: Record<string, number> = {}; byTingkat.forEach((x: any) => { tingkat[x._id] = x.jumlah; });
   const wilayah: Record<string, { total:number; kabupaten:Record<string,number> }> = {};
   byWilayah.forEach((x: any) => { const p = x._id.provinsi; const k = x._id.kabupatenKota; wilayah[p] ??= { total: 0, kabupaten: {} }; wilayah[p].total += x.jumlah; if (k) wilayah[p].kabupaten[k] = (wilayah[p].kabupaten[k] || 0) + x.jumlah; });
-  return { total: summary?.total || 0, pusat: summary?.pusat || 0, cabang: summary?.cabang || 0, nasional: summary?.nasional || 0, provinsi, bidang, tingkat, wilayah, lastUpdated: latest?.tanggalUpdate || latest?.createdAt || null };
+  return { total: summary?.total || 0, pusat: summary?.pusat || 0, cabang: summary?.cabang || 0, nasional: summary?.nasional || 0, provinsi, bidang, tingkat, wilayah, jumlahDaerah: { provinsi: jumlahProvinsi.length, kabupatenKota: jumlahKabupatenKota.length }, lastUpdated: latest?.tanggalUpdate || latest?.createdAt || null };
 }
 
 export async function getBidangStats(provinsi = '', kabupaten = '') {
