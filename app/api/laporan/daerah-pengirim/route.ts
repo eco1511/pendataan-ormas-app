@@ -21,6 +21,19 @@ function clean(value: unknown) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
 
+function normalizeProvinceName(value: unknown) {
+  return clean(value)
+    .toLocaleLowerCase('id-ID')
+    .replace(/^daerah istimewa yogyakarta$/, 'di yogyakarta')
+    .replace(/^daerah khusus ibukota jakarta$/, 'dki jakarta');
+}
+function normalizeRegencyName(value: unknown) {
+  return clean(value)
+    .toLocaleLowerCase('id-ID')
+    .replace(/^kab(?:upaten)?\.?\s+/, 'kabupaten ')
+    .replace(/^kota\.?\s+/, 'kota ')
+    .replace(/\badministrasi\b\s*/g, '');
+}
 function parseTimestamp(value: unknown) {
   const raw = clean(value);
   const serial = Number(raw);
@@ -65,6 +78,19 @@ function getTimestampOrder(value: unknown) {
   return parsed ? parsed.getTime() : 0;
 }
 
+function parseDateFilter(value: string, endOfDay = false) {
+  const match = clean(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0,
+  );
+}
 function normalizeLevel(value: string) {
   const level = clean(value).toLowerCase();
   if (level.includes('kabupaten') || level.includes('kota')) return 'Kabupaten/Kota';
@@ -114,6 +140,8 @@ export async function GET(req: Request) {
     const search = clean(url.searchParams.get('search')).toLowerCase();
     const tingkat = clean(url.searchParams.get('tingkat'));
     const provinsi = clean(url.searchParams.get('provinsi'));
+    const tanggalMulai = parseDateFilter(clean(url.searchParams.get('tanggalMulai')));
+    const tanggalSelesai = parseDateFilter(clean(url.searchParams.get('tanggalSelesai')), true);
     const page = Math.max(1, Number(url.searchParams.get('page') || 1));
     const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize') || 20)));
     const filtered = [...grouped.values()].filter((row) => {
@@ -123,8 +151,15 @@ export async function GET(req: Request) {
       || b.jumlahKiriman - a.jumlahKiriman
       || a.provinsi.localeCompare(b.provinsi)
       || a.kabupatenKota.localeCompare(b.kabupatenKota));
+    const filteredByDate = filtered.filter((row) => (
+      (!tanggalMulai || row.timestampOrder >= tanggalMulai)
+      && (!tanggalSelesai || row.timestampOrder <= tanggalSelesai)
+    ));
     await connectMongoDB();
-    const provinceRows = await Province.find({}, { namaProvinsi: 1, _id: 0 }).lean();
+    const [provinceRows, regencyRows] = await Promise.all([
+      Province.find({}, { namaProvinsi: 1, _id: 0 }).lean(),
+      Regency.find({}, { provinsi: 1, namaKabupatenKota: 1, _id: 0 }).lean(),
+    ]);
     const masterProvinces = [...new Set([
       ...PROVINCES,
       ...provinceRows.map((row: any) => clean(row.namaProvinsi)),
@@ -144,8 +179,28 @@ export async function GET(req: Request) {
       }
       provinceMap.set(row.provinsi, summary);
     }
-    const perProvinsi = [...provinceMap.values()].map((row) => ({ ...row, kabupatenKota: [...row.kabupatenKota].sort() })).sort((a, b) => a.provinsi.localeCompare(b.provinsi));
-    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const masterKabupatenByProvinsi = new Map<string, string[]>();
+    for (const row of regencyRows) {
+      const province = clean((row as any).provinsi);
+      const regency = clean((row as any).namaKabupatenKota);
+      if (!province || !regency) continue;
+      const provinceKey = normalizeProvinceName(province);
+      const current = masterKabupatenByProvinsi.get(provinceKey) || [];
+      current.push(regency);
+      masterKabupatenByProvinsi.set(provinceKey, current);
+    }
+    const perProvinsi = [...provinceMap.values()].map((row) => {
+      const sent = new Set([...row.kabupatenKota].map(normalizeRegencyName));
+      const kabupatenKotaBelumMengirim = (masterKabupatenByProvinsi.get(normalizeProvinceName(row.provinsi)) || [])
+        .filter((name) => !sent.has(normalizeRegencyName(name)))
+        .sort((a, b) => a.localeCompare(b, 'id-ID'));
+      return {
+        ...row,
+        kabupatenKota: [...row.kabupatenKota].sort(),
+        kabupatenKotaBelumMengirim,
+      };
+    }).sort((a, b) => a.provinsi.localeCompare(b.provinsi));
+    const totalPages = Math.max(1, Math.ceil(filteredByDate.length / pageSize));
     const currentPage = Math.min(page, totalPages);
     const start = (currentPage - 1) * pageSize;
     const notifications = [...submissions]
@@ -162,8 +217,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
-      data: filtered.slice(start, start + pageSize),
-      total: filtered.length,
+      data: filteredByDate.slice(start, start + pageSize),
+      total: filteredByDate.length,
       totalPages,
       page: currentPage,
       pageSize,

@@ -2,6 +2,14 @@
 import { useEffect, useState } from "react";
 import { MapPinned, RefreshCw, Search } from "lucide-react";
 
+function formatRegencyName(name: string) {
+  return name
+    .toLocaleLowerCase("id-ID")
+    .replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase("id-ID"))
+    .replace(/^Kabupaten\b/, "Kab.")
+    .replace(/\bAdministrasi\b\s*/g, "");
+}
+
 export default function DaerahPengirimClient() {
   const [data, setData] = useState<any>({
     data: [],
@@ -13,6 +21,8 @@ export default function DaerahPengirimClient() {
   const [search, setSearch] = useState("");
   const [tingkat, setTingkat] = useState("");
   const [provinsi, setProvinsi] = useState("");
+  const [tanggalMulai, setTanggalMulai] = useState("");
+  const [tanggalSelesai, setTanggalSelesai] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -25,6 +35,8 @@ export default function DaerahPengirimClient() {
       search,
       tingkat,
       provinsi,
+      tanggalMulai,
+      tanggalSelesai,
     });
     const response = await fetch("/api/laporan/daerah-pengirim?" + params);
     const result = await response.json();
@@ -36,7 +48,7 @@ export default function DaerahPengirimClient() {
   useEffect(() => {
     const timer = setTimeout(() => load(1), 250);
     return () => clearTimeout(timer);
-  }, [search, tingkat, provinsi]);
+  }, [search, tingkat, provinsi, tanggalMulai, tanggalSelesai]);
 
   return (
     <div className="space-y-5">
@@ -75,6 +87,22 @@ export default function DaerahPengirimClient() {
               <option key={item}>{item}</option>
             ))}
           </select>
+          <input
+            type="date"
+            value={tanggalMulai}
+            onChange={(event) => setTanggalMulai(event.target.value)}
+            aria-label="Tanggal mulai pengiriman"
+            title="Tanggal mulai"
+            className="rounded-xl border px-3 py-2.5"
+          />
+          <input
+            type="date"
+            value={tanggalSelesai}
+            onChange={(event) => setTanggalSelesai(event.target.value)}
+            aria-label="Tanggal selesai pengiriman"
+            title="Tanggal selesai"
+            className="rounded-xl border px-3 py-2.5"
+          />
           <button
             onClick={() => load(data.page || 1)}
             className="rounded-xl border bg-white px-3 py-2.5"
@@ -91,8 +119,8 @@ export default function DaerahPengirimClient() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50"><tr><th className="px-5 py-3 text-left">No</th><th className="px-5 py-3 text-left">Provinsi</th><th className="px-5 py-3 text-left">Jumlah Provinsi</th><th className="px-5 py-3 text-left">Jumlah Kabupaten/Kota</th><th className="px-5 py-3 text-left">Kabupaten/Kota</th></tr></thead>
-            <tbody>{loading ? <tr><td colSpan={5} className="py-8 text-center text-gray-400">Memuat data...</td></tr> : (data.perProvinsi || []).length ? data.perProvinsi.map((row: any, index: number) => <tr key={row.provinsi} className="border-t align-top"><td className="px-5 py-3">{index + 1}</td><td className="px-5 py-3 font-medium">{row.provinsi}</td><td className="px-5 py-3">{row.jumlahProvinsi || 0}</td><td className="px-5 py-3">{row.jumlahKabupatenKota || 0}</td><td className="px-5 py-3 text-gray-600">{row.kabupatenKota?.length ? row.kabupatenKota.join(', ') : '-'}</td></tr>) : <tr><td colSpan={5} className="py-8 text-center text-gray-400">Belum ada data per provinsi.</td></tr>}</tbody>
+            <thead className="bg-gray-50"><tr><th className="px-5 py-3 text-left">No</th><th className="px-5 py-3 text-left">Provinsi</th><th className="px-5 py-3 text-left">Kabupaten/Kota Yang Sudah Mengirimkan</th><th className="px-5 py-3 text-left">Provinsi Belum Mengirimkan</th><th className="px-5 py-3 text-left">Kabupaten/Kota Belum Mengirimkan</th></tr></thead>
+            <tbody>{loading ? <tr><td colSpan={5} className="py-8 text-center text-gray-400">Memuat data...</td></tr> : (data.perProvinsi || []).length ? data.perProvinsi.map((row: any, index: number) => <tr key={row.provinsi} className="border-t align-top"><td className="px-5 py-3">{index + 1}</td><td className="px-5 py-3 font-medium">{row.provinsi}</td><td className="px-5 py-3 text-gray-600">{row.kabupatenKota?.length ? <ol className="list-decimal space-y-1 pl-5">{row.kabupatenKota.map((item: string) => <li key={item}>{formatRegencyName(item)}</li>)}</ol> : '-'}</td><td className="px-5 py-3 text-gray-600">{row.jumlahProvinsi ? '-' : row.provinsi}</td><td className="px-5 py-3 text-gray-600">{row.kabupatenKotaBelumMengirim?.length ? <ol className="list-decimal space-y-1 pl-5">{row.kabupatenKotaBelumMengirim.map((item: string) => <li key={item}>{formatRegencyName(item)}</li>)}</ol> : '-'}</td></tr>) : <tr><td colSpan={5} className="py-8 text-center text-gray-400">Belum ada data per provinsi.</td></tr>}</tbody>
           </table>
         </div>
       </div>

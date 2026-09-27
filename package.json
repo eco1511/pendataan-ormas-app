@@ -12,6 +12,7 @@
     "migrate-data": "tsx scripts/migrate-data.ts",
     "format": "prettier --write .",
     "import-wilayah": "tsx scripts/import-wilayah.ts",
+    "import-regencies": "tsx scripts/import-regencies-online.ts",
     "db:check": "tsx scripts/db-check.ts",
     "setup": "tsx scripts/setup.ts",
     "import-bundled-data": "tsx scripts/import-bundled-data.ts"
