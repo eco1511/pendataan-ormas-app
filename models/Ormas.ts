@@ -1,8 +1,10 @@
 import { Schema, model, models, type InferSchemaType } from 'mongoose';
+import { KATEGORI_ORMAS } from '@/lib/ormas-master-data';
 
 const ormasSchema = new Schema({
   legacyId: { type: String, trim: true, index: true, sparse: true },
   namaOrmas: { type: String, required: true, trim: true, index: true },
+  kategoriOrmas: { type: String, enum: KATEGORI_ORMAS, default: 'None' },
   nomorSkt: { type: String, default: '', trim: true, index: true },
   periode: { type: String, default: '' },
   statusKepengurusan: { type: String, enum: ['Pusat', 'Cabang', ''], default: '', index: true },

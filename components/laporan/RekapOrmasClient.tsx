@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { KATEGORI_ORMAS } from "@/lib/ormas-master-data";
 
 type Region = {
   total: number;
@@ -16,6 +17,7 @@ type Region = {
 
 type Stats = {
   total: number;
+  kategoriOrmas: Record<(typeof KATEGORI_ORMAS)[number], number>;
   tingkat: Record<string, number>;
   wilayah: Record<string, Region>;
   jumlahDaerah: {
@@ -226,9 +228,33 @@ export default function RekapOrmasClient() {
               ? "..."
               : formatNumber(totalDaerah)
           }
-          detail={`${provinceCount} provinsi dan ${districtCount} kabupaten/kota yang mengirimkan data`}
+          detail={`${provinceCount} provinsi dan ${districtCount} kabupaten/kota yang sudah dinput`}
         />
       </div>
+
+      <section className="space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-blue-700">Kategori Ormas</p>
+          <h2 className="mt-1 text-xl font-bold text-slate-900">
+            Jumlah Ormas berdasarkan kategori
+          </h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {KATEGORI_ORMAS.map((kategori) => (
+            <NumberCard
+              key={kategori}
+              icon={Users}
+              label={kategori}
+              value={
+                loading
+                  ? "..."
+                  : formatNumber(data?.kategoriOrmas?.[kategori] || 0)
+              }
+              detail="Ormas aktif"
+            />
+          ))}
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="mb-5">
@@ -249,9 +275,6 @@ export default function RekapOrmasClient() {
               {loading ? "..." : formatNumber(provinceOrmas)}
             </div>
 
-            <div className="mt-1 text-sm text-slate-500">
-              Ormas tingkat Provinsi
-            </div>
           </div>
 
           <div className="rounded-xl bg-slate-50 p-4">
@@ -263,9 +286,6 @@ export default function RekapOrmasClient() {
               {loading ? "..." : formatNumber(districtOrmas)}
             </div>
 
-            <div className="mt-1 text-sm text-slate-500">
-              Ormas tingkat Kabupaten/Kota
-            </div>
           </div>
         </div>
       </section>

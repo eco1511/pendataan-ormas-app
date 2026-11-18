@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import { KATEGORI_ORMAS } from '@/lib/ormas-master-data';
 
 export const ormasSchema = z.object({
   namaOrmas: z.string().trim().min(1, 'Nama Ormas wajib diisi.'),
+  kategoriOrmas: z.enum(KATEGORI_ORMAS),
   nomorSkt: z.string().trim().min(1, 'Nomor SKT/BH wajib diisi.'),
   periode: z.string().trim().optional().default(''),
   statusKepengurusan: z.enum(['Pusat', 'Cabang']),

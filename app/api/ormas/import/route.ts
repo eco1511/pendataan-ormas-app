@@ -80,6 +80,7 @@ export async function POST(req: Request) {
       // SEMUA DATA DISIMPAN
       return {
         namaOrmas: d.namaOrmas || '',
+        kategoriOrmas: d.kategoriOrmas || 'None',
         nomorSkt: d.nomorSkt || '',
         periode: d.periode || '',
 

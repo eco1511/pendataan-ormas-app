@@ -28,6 +28,7 @@ const REQUIRED = [
 ];
 const HEADERS = [
   "Nama Ormas",
+  "Kategori Ormas",
   "Nomor SKT",
   "Periode",
   "Status Kepengurusan",
@@ -53,6 +54,7 @@ function canon(h: string) {
 const aliases: Record<string, string> = {
   "nama ormas": "Nama Ormas",
   "nama organisasi kemasyarakatan": "Nama Ormas",
+  "kategori ormas": "Kategori Ormas",
   "nomor skt": "Nomor SKT",
   "skt bh": "Nomor SKT",
   "nomor badan hukum": "Nomor SKT",
@@ -232,6 +234,7 @@ export default function DataOrmasClient() {
   function camel(h: string) {
     const m: Record<string, string> = {
       "Nama Ormas": "namaOrmas",
+      "Kategori Ormas": "kategoriOrmas",
       "Nomor SKT": "nomorSkt",
       Periode: "periode",
       "Status Kepengurusan": "statusKepengurusan",
@@ -432,6 +435,7 @@ export default function DataOrmasClient() {
                 {[
                   "No",
                   "Nama Ormas",
+                  "Kategori",
                   "SKT/BH",
                   "Wilayah",
                   "Bidang",
@@ -447,13 +451,13 @@ export default function DataOrmasClient() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">
+                  <td colSpan={8} className="py-12 text-center text-gray-400">
                     Memuat...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">
+                  <td colSpan={8} className="py-12 text-center text-gray-400">
                     Tidak ada data
                   </td>
                 </tr>
@@ -462,6 +466,7 @@ export default function DataOrmasClient() {
                   <tr key={d._id} className="border-t hover:bg-gray-50">
                     <td className="px-5 py-3">{start + i}</td>
                     <td className="px-5 py-3 font-medium">{d.namaOrmas}</td>
+                    <td className="px-5 py-3">{d.kategoriOrmas || "None"}</td>
                     <td className="px-5 py-3">{d.nomorSkt}</td>
                     <td className="px-5 py-3 text-xs">
                       {d.provinsi}
@@ -549,6 +554,7 @@ export default function DataOrmasClient() {
                 editing
                   ? {
                       namaOrmas: editing.namaOrmas,
+                      kategoriOrmas: editing.kategoriOrmas || "None",
                       nomorSkt: editing.nomorSkt,
                       periode: editing.periode,
                       statusKepengurusan: editing.statusKepengurusan,

@@ -1,11 +1,12 @@
 import { connectMongoDB } from '@/lib/mongodb';
 import { Ormas } from '@/models/Ormas';
+import { BIDANG_KEGIATAN, KATEGORI_ORMAS } from '@/lib/ormas-master-data';
 
 const JUMLAH_PROVINSI_INDONESIA = 38;
 const JUMLAH_KABUPATEN_KOTA_INDONESIA = 514;
 
 export type OrmasInput = {
-  namaOrmas: string; nomorSkt: string; periode?: string; statusKepengurusan: 'Pusat'|'Cabang'; ketua: string; sekretaris?: string;
+  namaOrmas: string; kategoriOrmas: typeof KATEGORI_ORMAS[number]; nomorSkt: string; periode?: string; statusKepengurusan: 'Pusat'|'Cabang'; ketua: string; sekretaris?: string;
   bendahara?: string; jumlahAnggota?: number; alamat: string; nomorTelepon?: string; bidangKegiatan: string; detailKegiatan?: string;
   tingkat: 'Nasional'|'Provinsi'|'Kabupaten/Kota'; provinsi: string; kabupatenKota?: string;
 };
@@ -18,6 +19,7 @@ function mapDoc(doc: any) {
     ID: x.legacyId || id,
     legacyId: x.legacyId || null,
     namaOrmas: x.namaOrmas,
+    kategoriOrmas: x.kategoriOrmas || 'None',
     nomorSkt: x.nomorSkt,
     periode: x.periode,
     statusKepengurusan: x.statusKepengurusan,
@@ -113,20 +115,23 @@ export async function getDashboardStats() {
   const filter = { statusData: { $ne: 'Deleted' } };
   const [summary] = await Ormas.aggregate([{ $match: filter }, { $group: { _id: null, total: { $sum: 1 }, pusat: { $sum: { $cond: [{ $eq: ['$statusKepengurusan', 'Pusat'] }, 1, 0] } }, cabang: { $sum: { $cond: [{ $eq: ['$statusKepengurusan', 'Cabang'] }, 1, 0] } }, nasional: { $sum: { $cond: [{ $eq: ['$tingkat', 'Nasional'] }, 1, 0] } } } }]);
   const latest = await Ormas.findOne(filter, { tanggalUpdate: 1, createdAt: 1 }).sort({ tanggalUpdate: -1, createdAt: -1 }).lean<any>();
-  const [byProvinsi, byBidang, byTingkat, byWilayah, jumlahProvinsi, jumlahKabupatenKota] = await Promise.all([
+  const [byProvinsi, byBidang, byTingkat, byWilayah, byKategoriOrmas, jumlahProvinsi, jumlahKabupatenKota] = await Promise.all([
     Ormas.aggregate([{ $match: { ...filter, provinsi: { $ne: '' } } }, { $group: { _id: '$provinsi', jumlah: { $sum: 1 } } }, { $sort: { jumlah: -1 } }]),
     Ormas.aggregate([{ $match: { ...filter, bidangKegiatan: { $ne: '' } } }, { $group: { _id: '$bidangKegiatan', jumlah: { $sum: 1 } } }, { $sort: { jumlah: -1 } }]),
     Ormas.aggregate([{ $match: filter }, { $group: { _id: '$tingkat', jumlah: { $sum: 1 } } }, { $sort: { jumlah: -1 } }]),
     Ormas.aggregate([{ $match: { ...filter, provinsi: { $ne: '' } } }, { $group: { _id: { provinsi: '$provinsi', kabupatenKota: '$kabupatenKota' }, jumlah: { $sum: 1 } } }]),
+    Ormas.aggregate([{ $match: filter }, { $group: { _id: { $cond: [{ $in: ['$kategoriOrmas', KATEGORI_ORMAS] }, '$kategoriOrmas', 'None'] }, jumlah: { $sum: 1 } } }]),
     Ormas.distinct('provinsi', { ...filter, tingkat: 'Provinsi', provinsi: { $ne: '' } }),
     Ormas.aggregate([{ $match: { ...filter, tingkat: 'Kabupaten/Kota', provinsi: { $ne: '' }, kabupatenKota: { $ne: '' } } }, { $group: { _id: { provinsi: '$provinsi', kabupatenKota: '$kabupatenKota' } } }]),
   ]);
   const provinsi: Record<string, number> = {}; byProvinsi.forEach((x: any) => { provinsi[x._id] = x.jumlah; });
   const bidang: Record<string, number> = {}; byBidang.forEach((x: any) => { bidang[x._id] = x.jumlah; });
   const tingkat: Record<string, number> = {}; byTingkat.forEach((x: any) => { tingkat[x._id] = x.jumlah; });
+  const kategoriOrmas = Object.fromEntries(KATEGORI_ORMAS.map((kategori) => [kategori, 0])) as Record<typeof KATEGORI_ORMAS[number], number>;
+  byKategoriOrmas.forEach((x: any) => { kategoriOrmas[x._id as typeof KATEGORI_ORMAS[number]] = x.jumlah; });
   const wilayah: Record<string, { total:number; kabupaten:Record<string,number> }> = {};
   byWilayah.forEach((x: any) => { const p = x._id.provinsi; const k = x._id.kabupatenKota; wilayah[p] ??= { total: 0, kabupaten: {} }; wilayah[p].total += x.jumlah; if (k) wilayah[p].kabupaten[k] = (wilayah[p].kabupaten[k] || 0) + x.jumlah; });
-  return { total: summary?.total || 0, pusat: summary?.pusat || 0, cabang: summary?.cabang || 0, nasional: summary?.nasional || 0, provinsi, bidang, tingkat, wilayah, jumlahDaerah: { provinsi: jumlahProvinsi.length, kabupatenKota: jumlahKabupatenKota.length }, lastUpdated: latest?.tanggalUpdate || latest?.createdAt || null };
+  return { total: summary?.total || 0, pusat: summary?.pusat || 0, cabang: summary?.cabang || 0, nasional: summary?.nasional || 0, provinsi, bidang, tingkat, kategoriOrmas, wilayah, jumlahDaerah: { provinsi: jumlahProvinsi.length, kabupatenKota: jumlahKabupatenKota.length }, lastUpdated: latest?.tanggalUpdate || latest?.createdAt || null };
 }
 
 export async function getBidangStats(provinsi = '', kabupaten = '') {
@@ -137,17 +142,24 @@ export async function getBidangStats(provinsi = '', kabupaten = '') {
   const rows = await Ormas.find(filter, { bidangKegiatan: 1, _id: 0 }).lean();
   const counts = new Map<string, number>();
   for (const row of rows) {
+    const rawBidang = String(row.bidangKegiatan).trim();
     const bidangDalamOrmas = new Set(
-      String(row.bidangKegiatan)
-        .split(/[,;|\n]+/)
+      (BIDANG_KEGIATAN.includes(rawBidang as typeof BIDANG_KEGIATAN[number])
+        ? [rawBidang]
+        : rawBidang.split(/[,;|\n]+/)
+      )
         .map((bidang) => bidang.trim())
         .filter(Boolean),
     );
     for (const bidang of bidangDalamOrmas) counts.set(bidang, (counts.get(bidang) || 0) + 1);
   }
-  const stats = [...counts.entries()]
-    .map(([bidang, jumlah]) => ({ bidang, jumlah }))
-    .sort((a, b) => b.jumlah - a.jumlah);
+  const stats = [
+    ...BIDANG_KEGIATAN.map((bidang) => ({ bidang, jumlah: counts.get(bidang) || 0 })),
+    ...[...counts.entries()]
+      .filter(([bidang]) => !BIDANG_KEGIATAN.includes(bidang as typeof BIDANG_KEGIATAN[number]))
+      .map(([bidang, jumlah]) => ({ bidang, jumlah }))
+      .sort((a, b) => b.jumlah - a.jumlah),
+  ];
   const total = stats.reduce((sum, item) => sum + item.jumlah, 0);
   return stats.map((item) => ({ ...item, persentase: total ? Number((item.jumlah / total * 100).toFixed(2)) : 0 }));
 }

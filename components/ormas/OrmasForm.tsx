@@ -6,17 +6,6 @@ import { ormasSchema } from "@/lib/validations";
 import { z } from "zod";
 export type OrmasFormValues = z.infer<typeof ormasSchema>;
 type OrmasFormInput = z.input<typeof ormasSchema>;
-const bidang = [
-  "Agama",
-  "Pendidikan",
-  "Sosial Kemanusiaan",
-  "Lingkungan Hidup",
-  "Kesehatan",
-  "Profesi",
-  "Sosial",
-  "Budaya",
-  "Lainnya",
-];
 export default function OrmasForm({
   initial,
   onSubmit,
@@ -28,6 +17,8 @@ export default function OrmasForm({
 }) {
   const [provinces, setProvinces] = useState<string[]>([]);
   const [kabs, setKabs] = useState<string[]>([]);
+  const [bidang, setBidang] = useState<string[]>([]);
+  const [bidangError, setBidangError] = useState("");
   const {
     register,
     handleSubmit,
@@ -38,6 +29,7 @@ export default function OrmasForm({
     resolver: zodResolver(ormasSchema),
     defaultValues: {
       namaOrmas: "",
+      kategoriOrmas: "None",
       nomorSkt: "",
       periode: "",
       statusKepengurusan: "Pusat",
@@ -62,6 +54,24 @@ export default function OrmasForm({
       .then((d) => setProvinces(d.data || []));
   }, []);
   useEffect(() => {
+    async function loadBidang() {
+      try {
+        const response = await fetch("/api/bidang-kegiatan");
+        const result = await response.json();
+        if (!response.ok || !result.success || !Array.isArray(result.data)) {
+          throw new Error(result.message || "Gagal memuat master bidang kegiatan.");
+        }
+        setBidang(result.data);
+      } catch (error) {
+        setBidangError(
+          error instanceof Error ? error.message : "Gagal memuat master bidang kegiatan.",
+        );
+      }
+    }
+
+    void loadBidang();
+  }, []);
+  useEffect(() => {
     if (!prov) {
       setKabs([]);
       setValue("kabupatenKota", "");
@@ -83,7 +93,7 @@ export default function OrmasForm({
         {...props}
         className="w-full rounded-xl border px-3 py-2.5 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
       />
-      <Error name={name} />
+      <FieldError name={name} />
     </div>
   );
   const select = (
@@ -105,10 +115,10 @@ export default function OrmasForm({
           </option>
         ))}
       </select>
-      <Error name={name} />
+      <FieldError name={name} />
     </div>
   );
-  const Error = ({ name }: { name: keyof OrmasFormValues }) => (
+  const FieldError = ({ name }: { name: keyof OrmasFormValues }) => (
     <>
       {errors[name] && (
         <p className="mt-1 text-xs text-red-600">
@@ -121,8 +131,19 @@ export default function OrmasForm({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2">
         {input("namaOrmas", "Nama Ormas *")}
+        {select("kategoriOrmas", "Kategori Ormas *", [
+          "Perkumpulan",
+          "Yayasan",
+          "Tidak Berbadan Hukum",
+          "None",
+        ])}
         {input("nomorSkt", "Nomor SKT / Badan Hukum *")}
-        {select("bidangKegiatan", "Bidang Kegiatan *", ["", ...bidang])}
+        <div>
+          {select("bidangKegiatan", "Bidang Kegiatan *", ["", ...bidang])}
+          {bidangError && (
+            <p className="mt-1 text-xs text-red-600">{bidangError}</p>
+          )}
+        </div>
         {input("detailKegiatan", "Detail Kegiatan")}
       </div>
       <div className="grid gap-4 md:grid-cols-3">
@@ -158,7 +179,7 @@ export default function OrmasForm({
           rows={3}
           className="w-full rounded-xl border px-3 py-2.5"
         />
-        <Error name="alamat" />
+        <FieldError name="alamat" />
       </div>
       {input("nomorTelepon", "Nomor Telepon / HP")}
       <div className="flex justify-end gap-2 border-t pt-4">

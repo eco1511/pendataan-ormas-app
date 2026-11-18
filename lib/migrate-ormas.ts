@@ -10,6 +10,7 @@ const aliases: Record<string, string> = {
   id: 'legacyId',
   'nama ormas': 'namaOrmas',
   'nama organisasi kemasyarakatan': 'namaOrmas',
+  'kategori ormas': 'kategoriOrmas',
   'nomor skt': 'nomorSkt',
   'skt bh': 'nomorSkt',
   'nomor skt bh': 'nomorSkt',
@@ -107,6 +108,7 @@ export async function migrateOrmasFile(filePath: string) {
     return {
       legacyId,
       namaOrmas,
+      kategoriOrmas: clean(get(row, 'kategoriOrmas')) || 'None',
       nomorSkt: clean(get(row, 'nomorSkt')),
       periode: clean(get(row, 'periode')),
       statusKepengurusan,

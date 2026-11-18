@@ -94,7 +94,10 @@ npm run db:check
 - `ormas`
 - `provinces`
 - `regencies`
+- `bidangkegiatans`
 - `activitylogs`
+
+Master bidang kegiatan diisi oleh `npm run setup` atau `npm run seed`.
 
 ## Fitur
 - Login multi-role

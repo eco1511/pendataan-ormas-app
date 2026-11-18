@@ -10,7 +10,7 @@ export default async function DetailPage({params}:{params:Promise<{id:string}>})
   const d=await getOrmas(id);
   if(!d)notFound();
   const items=[
-    ['Nama Ormas',d.namaOrmas],['Nomor SKT/BH',d.nomorSkt],['Bidang Kegiatan',d.bidangKegiatan],['Detail Kegiatan',d.detailKegiatan],
+    ['Nama Ormas',d.namaOrmas],['Kategori Ormas',d.kategoriOrmas || 'None'],['Nomor SKT/BH',d.nomorSkt],['Bidang Kegiatan',d.bidangKegiatan],['Detail Kegiatan',d.detailKegiatan],
     ['Tingkat',d.tingkat],['Status Kepengurusan',d.statusKepengurusan],['Ketua',d.ketua],['Sekretaris',d.sekretaris],['Bendahara',d.bendahara],
     ['Jumlah Anggota',d.jumlahAnggota],['Provinsi',d.provinsi],['Kabupaten/Kota',d.kabupatenKota],['Alamat',d.alamat],['Telepon',d.nomorTelepon],
     ['Periode',d.periode],['Tanggal Input',new Date(d.tanggalInput).toLocaleString('id-ID')],['Tanggal Update',new Date(d.tanggalUpdate).toLocaleString('id-ID')],
