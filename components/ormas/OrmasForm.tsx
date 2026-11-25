@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ormasSchema } from "@/lib/validations";
+import { BIDANG_KEGIATAN } from "@/lib/ormas-master-data";
 import { z } from "zod";
 export type OrmasFormValues = z.infer<typeof ormasSchema>;
 type OrmasFormInput = z.input<typeof ormasSchema>;
@@ -17,13 +18,14 @@ export default function OrmasForm({
 }) {
   const [provinces, setProvinces] = useState<string[]>([]);
   const [kabs, setKabs] = useState<string[]>([]);
-  const [bidang, setBidang] = useState<string[]>([]);
+  const [bidang, setBidang] = useState<string[]>([...BIDANG_KEGIATAN]);
   const [bidangError, setBidangError] = useState("");
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<OrmasFormInput, any, OrmasFormValues>({
     resolver: zodResolver(ormasSchema),
@@ -47,6 +49,29 @@ export default function OrmasForm({
       ...initial,
     },
   });
+  const initialValuesKey = JSON.stringify(initial);
+  useEffect(() => {
+    if (!initial) return;
+    reset({
+      namaOrmas: "",
+      kategoriOrmas: "None",
+      nomorSkt: "",
+      periode: "",
+      statusKepengurusan: "Pusat",
+      ketua: "",
+      sekretaris: "",
+      bendahara: "",
+      jumlahAnggota: 0,
+      alamat: "",
+      nomorTelepon: "",
+      bidangKegiatan: "",
+      detailKegiatan: "",
+      tingkat: "Nasional",
+      provinsi: "",
+      kabupatenKota: "",
+      ...initial,
+    });
+  }, [initialValuesKey, reset]);
   const prov = watch("provinsi");
   useEffect(() => {
     fetch("/api/provinsi")
@@ -107,6 +132,10 @@ export default function OrmasForm({
       <select
         {...register(name as any)}
         {...props}
+        defaultValue={
+          props.defaultValue ??
+          (typeof initial?.[name] === "string" ? initial[name] : "")
+        }
         className="w-full rounded-xl border bg-white px-3 py-2.5 outline-none focus:border-blue-600"
       >
         {options.map((o) => (
@@ -139,7 +168,20 @@ export default function OrmasForm({
         ])}
         {input("nomorSkt", "Nomor SKT / Badan Hukum *")}
         <div>
-          {select("bidangKegiatan", "Bidang Kegiatan *", ["", ...bidang])}
+          {select(
+            "bidangKegiatan",
+            "Bidang Kegiatan *",
+            [
+              "",
+              ...bidang,
+              ...(
+                initial?.bidangKegiatan &&
+                !bidang.includes(initial.bidangKegiatan)
+                  ? [initial.bidangKegiatan]
+                  : []
+              ),
+            ],
+          )}
           {bidangError && (
             <p className="mt-1 text-xs text-red-600">{bidangError}</p>
           )}

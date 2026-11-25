@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { connectMongoDB } from '@/lib/mongodb';
 import { BidangKegiatan } from '@/models/BidangKegiatan';
+import { BIDANG_KEGIATAN } from '@/lib/ormas-master-data';
 
 export async function GET() {
   const user = await getSession();
@@ -14,12 +15,15 @@ export async function GET() {
     const records = await BidangKegiatan.find({}, { namaBidang: 1, _id: 0 })
       .sort({ urutan: 1 })
       .lean();
-    return NextResponse.json({ success: true, data: records.map((record) => record.namaBidang) });
+    const databaseValues = records
+      .map((record) => String(record.namaBidang || '').trim())
+      .filter(Boolean);
+    const data = [...new Set([...BIDANG_KEGIATAN, ...databaseValues])];
+    return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('BIDANG_KEGIATAN_LOAD_ERROR', error);
     return NextResponse.json(
-      { success: false, message: error?.message || 'Gagal memuat master bidang kegiatan.' },
-      { status: 500 },
+      { success: true, data: [...BIDANG_KEGIATAN] },
     );
   }
 }
